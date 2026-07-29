@@ -1,0 +1,31 @@
+{
+  "name": "ecosort",
+  "version": "1.0.0",
+  "description": "EcoSort는 올바른 분리배출 방법을 쉽고 빠르게 검색할 수 있는 웹 서비스입니다.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "nodemon server/server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gxinu8/ECOSORT.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/gxinu8/ECOSORT/issues"
+  },
+  "homepage": "https://github.com/gxinu8/ECOSORT#readme",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^6.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
