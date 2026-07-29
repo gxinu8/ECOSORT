@@ -1,21 +1,80 @@
 <!DOCTYPE html>
 <html lang="ko">
-
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        name="description"
+        content="버릴 물건을 검색하고 올바른 분리배출 방법을 확인하는 EcoSort 서비스"
+    >
     <title>EcoSort</title>
-
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/js/main.js" defer></script>
 </head>
-
 <body>
+    <main class="page-container">
+        <header class="site-header">
+            <a class="brand" href="/" aria-label="EcoSort 홈">
+                <span class="brand-mark" aria-hidden="true">♻</span>
+                <span>EcoSort</span>
+            </a>
+            <p class="tagline">올바른 분리배출 도우미</p>
+            <p class="intro">
+                버리기 전에 한 번 검색해 보세요.<br>
+                품목에 맞는 분리배출 방법과 환경 정보를 알려드립니다.
+            </p>
+        </header>
 
-    <h1>🌱 EcoSort</h1>
+        <section class="search-section" aria-labelledby="search-heading">
+            <h1 id="search-heading" class="visually-hidden">분리배출 품목 검색</h1>
 
-    <p>지능형 분리배출 도우미</p>
+            <form id="search-form" class="search-form" role="search">
+                <label class="visually-hidden" for="search-input">버릴 물건 검색</label>
+                <div class="search-controls">
+                    <input
+                        id="search-input"
+                        name="q"
+                        type="search"
+                        placeholder="품목명이나 별칭을 입력해보세요"
+                        autocomplete="off"
+                        required
+                    >
+                    <button id="search-button" type="submit">검색</button>
+                </div>
+                <p class="search-hint">
+                    <span class="hint-label">💡 예시</span>
+                    <span>생수병 · 종이컵 · 칫솔 · 배달용기</span>
+                </p>
+            </form>
 
-    <script src="script.js"></script>
+            <div class="category-area">
+                <p class="category-label">카테고리</p>
+                <div class="category-list" aria-label="분리배출 카테고리">
+                    <button type="button">플라스틱</button>
+                    <button type="button">종이</button>
+                    <button type="button">유리</button>
+                    <button type="button">캔</button>
+                    <button type="button">비닐</button>
+                    <button type="button">일반쓰레기</button>
+                    <button type="button">음식물</button>
+                </div>
+            </div>
+        </section>
 
+        <section
+            id="result-section"
+            class="result-section"
+            aria-live="polite"
+            aria-busy="false"
+            hidden
+        >
+            <div id="result-summary" class="result-summary"></div>
+            <div id="result-list" class="result-list"></div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        작은 실천이 깨끗한 환경을 만듭니다.
+    </footer>
 </body>
-
 </html>
