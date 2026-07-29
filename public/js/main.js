@@ -8,7 +8,8 @@ const resultList = document.querySelector("#result-list");
 const searchTypeLabels = {
     name: "품목명",
     alias: "비슷한 이름",
-    tag: "관련 태그"
+    tag: "관련 태그",
+    fuzzy: "유사 검색"
 };
 
 // 문자열을 HTML로 조합하지 않고 DOM 요소로 만들어 API 데이터를 안전하게 출력합니다.
@@ -105,18 +106,71 @@ function renderMessage(message, type = "") {
     resultList.replaceChildren(messageBox);
 }
 
-function renderResults(query, searchType, data) {
+function renderEmptyState() {
+    showResultSection();
+    resultSummary.replaceChildren();
+
+    const messageBox = document.createElement("div");
+    messageBox.className = "result-message empty-state";
+    messageBox.append(
+        createTextElement("strong", "", "검색 결과를 찾을 수 없습니다."),
+        createTextElement(
+            "p",
+            "empty-guide",
+            "입력한 품목명을 다시 확인하거나 다른 검색어를 입력해보세요."
+        )
+    );
+
+    const examples = document.createElement("ul");
+    examples.className = "empty-examples";
+
+    for (const example of ["생수병", "플라스틱", "종이컵"]) {
+        examples.appendChild(createTextElement("li", "", example));
+    }
+
+    messageBox.appendChild(examples);
+    resultList.replaceChildren(messageBox);
+}
+
+function renderResults(query, searchType, data, suggestion = "") {
     const items = Array.isArray(data) ? data : [data];
     const typeLabel = searchTypeLabels[searchType] || "검색";
 
     showResultSection();
     resultSummary.replaceChildren();
 
-    const queryText = createTextElement("strong", "", `“${query}”`);
-    resultSummary.append(
-        queryText,
-        document.createTextNode(` ${typeLabel} 검색 결과 ${items.length}개`)
-    );
+    if (searchType === "fuzzy") {
+        const fuzzyMessage = document.createElement("div");
+        fuzzyMessage.className = "fuzzy-message";
+        fuzzyMessage.append(
+            createTextElement(
+                "span",
+                "fuzzy-suggestion",
+                `혹시 “${suggestion}”을 찾으셨나요?`
+            ),
+            createTextElement(
+                "span",
+                "fuzzy-guide",
+                "입력한 검색어와 가장 유사한 결과입니다."
+            ),
+            createTextElement(
+                "span",
+                "fuzzy-subguide",
+                "추천 품목을 보여드립니다."
+            )
+        );
+
+        resultSummary.append(
+            createTextElement("strong", "", `🔍 “${query}” 검색 결과`),
+            fuzzyMessage
+        );
+    } else {
+        const queryText = createTextElement("strong", "", `“${query}”`);
+        resultSummary.append(
+            queryText,
+            document.createTextNode(` ${typeLabel} 검색 결과 ${items.length}개`)
+        );
+    }
 
     resultList.replaceChildren(...items.map(createResultCard));
 }
@@ -137,7 +191,7 @@ async function searchItems(query) {
     const result = await response.json();
 
     if (response.status === 404) {
-        renderMessage("검색 결과가 없습니다.");
+        renderEmptyState();
         return;
     }
 
@@ -145,7 +199,7 @@ async function searchItems(query) {
         throw new Error(result.message || "검색 요청에 실패했습니다.");
     }
 
-    renderResults(query, result.searchType, result.data);
+    renderResults(query, result.searchType, result.data, result.suggestion);
 }
 
 searchForm.addEventListener("submit", async (event) => {

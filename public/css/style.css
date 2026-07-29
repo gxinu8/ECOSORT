@@ -222,6 +222,29 @@ button {
     color: var(--primary);
 }
 
+.fuzzy-message {
+    margin-top: 5px;
+    animation: fuzzy-message-in 0.25s ease-out both;
+}
+
+.fuzzy-suggestion,
+.fuzzy-guide,
+.fuzzy-subguide {
+    display: block;
+}
+
+.fuzzy-suggestion {
+    margin-bottom: 2px;
+    color: #405443;
+    font-weight: 700;
+}
+
+.fuzzy-guide,
+.fuzzy-subguide {
+    color: var(--muted);
+    font-size: 0.86rem;
+}
+
 .result-list {
     display: grid;
     gap: 18px;
@@ -372,6 +395,24 @@ button {
     color: var(--error-text);
 }
 
+.empty-guide {
+    max-width: 420px;
+    margin: 6px auto 13px;
+    font-size: 0.88rem;
+}
+
+.empty-examples {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px 20px;
+    margin: 0;
+    padding-left: 18px;
+    color: #59625b;
+    font-size: 0.84rem;
+    text-align: left;
+}
+
 .site-footer {
     padding: 0 20px 30px;
     color: #808781;
@@ -400,6 +441,18 @@ button {
     to {
         opacity: 1;
         transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes fuzzy-message-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 
