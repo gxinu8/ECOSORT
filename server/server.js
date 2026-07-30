@@ -71,6 +71,21 @@ function matchesKoreanInitialPrefix(value, query) {
     );
 }
 
+function shuffleArray(values) {
+    const shuffled = [...values];
+
+    // Fisher-Yates 방식으로 각 문제의 오답과 보기 순서를 무작위로 섞습니다.
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+        const randomIndex = Math.floor(Math.random() * (index + 1));
+        [shuffled[index], shuffled[randomIndex]] = [
+            shuffled[randomIndex],
+            shuffled[index]
+        ];
+    }
+
+    return shuffled;
+}
+
 // 자동완성은 검색 API와 분리하여 품목명, 별칭, 카테고리만 조회합니다.
 app.get("/api/autocomplete", async (req, res) => {
     const query = typeof req.query.q === "string" ? req.query.q.trim() : "";
@@ -151,6 +166,121 @@ app.get("/api/autocomplete", async (req, res) => {
         });
     } catch (error) {
         console.error("자동완성 검색 중 오류가 발생했습니다:", error);
+        return res.status(500).json({
+            success: false,
+            message: "서버 오류가 발생했습니다."
+        });
+    }
+});
+
+// DB 구조를 변경하지 않고 기존 품목과 카테고리로 10문제 분량을 생성합니다.
+app.get("/api/quiz", async (req, res) => {
+    const questionCount = 10;
+    const optionCount = 4;
+
+    try {
+        const quizItems = await db.all(
+            `SELECT id, name, category, disposal_method, precautions,
+                    decomposition_years, environment_info
+             FROM items
+             ORDER BY RANDOM()
+             LIMIT ?`,
+            [questionCount]
+        );
+        const categoryRows = await db.all(
+            "SELECT DISTINCT category FROM items ORDER BY category"
+        );
+        const categories = categoryRows.map((row) => row.category);
+
+        if (
+            quizItems.length < questionCount
+            || categories.length < optionCount
+        ) {
+            return res.status(500).json({
+                success: false,
+                message: "퀴즈를 생성하기 위한 데이터가 부족합니다."
+            });
+        }
+
+        const data = quizItems.map((item) => {
+            const wrongAnswers = shuffleArray(
+                categories.filter((category) => category !== item.category)
+            ).slice(0, optionCount - 1);
+            const options = shuffleArray([item.category, ...wrongAnswers]);
+
+            return {
+                id: item.id,
+                name: item.name,
+                answer: item.category,
+                options,
+                disposal_method: item.disposal_method,
+                precautions: item.precautions,
+                decomposition_years: item.decomposition_years,
+                environment_info: item.environment_info
+            };
+        });
+
+        return res.json({
+            success: true,
+            data
+        });
+    } catch (error) {
+        console.error("퀴즈 생성 중 오류가 발생했습니다:", error);
+        return res.status(500).json({
+            success: false,
+            message: "서버 오류가 발생했습니다."
+        });
+    }
+});
+
+// 페이지를 열 때마다 환경 정보가 있는 품목 하나를 무작위로 제공합니다.
+app.get("/api/environment-fact", async (req, res) => {
+    try {
+        const fact = await db.get(
+            `SELECT name, environment_info
+             FROM items
+             WHERE environment_info IS NOT NULL
+               AND environment_info != ''
+             ORDER BY RANDOM()
+             LIMIT 1`
+        );
+
+        if (!fact) {
+            return res.status(404).json({
+                success: false,
+                message: "환경 상식 데이터가 없습니다."
+            });
+        }
+
+        return res.json({
+            success: true,
+            data: fact
+        });
+    } catch (error) {
+        console.error("환경 상식 조회 중 오류가 발생했습니다:", error);
+        return res.status(500).json({
+            success: false,
+            message: "서버 오류가 발생했습니다."
+        });
+    }
+});
+
+// 학습 모드에서 사용할 품목 정보를 이름순으로 제공합니다.
+app.get("/api/study", async (req, res) => {
+    try {
+        const items = await db.all(
+            `SELECT id, name, category, disposal_method, precautions,
+                    decomposition_years, environment_info
+             FROM items
+             ORDER BY name ASC, id ASC`
+        );
+
+        return res.json({
+            success: true,
+            data: items
+        });
+    } catch (error) {
+        console.error("학습 데이터 조회 중 오류가 발생했습니다:", error);
         return res.status(500).json({
             success: false,
             message: "서버 오류가 발생했습니다."

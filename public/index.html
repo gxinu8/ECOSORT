@@ -12,21 +12,67 @@
     <script src="/js/main.js" defer></script>
 </head>
 <body>
-    <main class="page-container">
-        <header class="site-header">
-            <a class="brand" href="/" aria-label="EcoSort 홈">
-                <span class="brand-mark" aria-hidden="true">♻</span>
+    <header class="app-header">
+        <div class="app-header-inner">
+            <button
+                id="app-logo"
+                class="app-logo"
+                type="button"
+                aria-label="EcoSort 검색 화면"
+            >
+                <span aria-hidden="true">♻</span>
                 <span>EcoSort</span>
-            </a>
-            <p class="tagline">올바른 분리배출 도우미</p>
-            <p class="intro">
-                버리기 전에 한 번 검색해 보세요.<br>
-                품목에 맞는 분리배출 방법과 환경 정보를 알려드립니다.
-            </p>
-        </header>
+            </button>
+            <nav class="app-nav" aria-label="EcoSort 주요 메뉴">
+                <button
+                    id="nav-search"
+                    class="app-nav-button is-active"
+                    type="button"
+                    aria-selected="true"
+                >
+                    🔍 분리배출 검색
+                </button>
+                <button
+                    id="nav-fact"
+                    class="app-nav-button"
+                    type="button"
+                    aria-selected="false"
+                >
+                    🌱 오늘의 환경 상식
+                </button>
+                <button
+                    id="nav-quiz"
+                    class="app-nav-button"
+                    type="button"
+                    aria-selected="false"
+                >
+                    🧠 퀴즈
+                </button>
+                <button
+                    id="nav-collection"
+                    class="app-nav-button"
+                    type="button"
+                    aria-selected="false"
+                >
+                    📚 환경 도감
+                </button>
+            </nav>
+        </div>
+    </header>
 
-        <section class="search-section" aria-labelledby="search-heading">
-            <h1 id="search-heading" class="visually-hidden">분리배출 품목 검색</h1>
+    <main class="page-container">
+        <section id="search-view" class="app-view is-active">
+            <header class="site-header">
+                <h1 class="view-title">🔍 분리배출 검색</h1>
+                <p class="tagline">올바른 분리배출 도우미</p>
+                <p class="intro">
+                    버리기 전에 한 번 검색해 보세요.<br>
+                    품목에 맞는 분리배출 방법과 환경 정보를 알려드립니다.
+                </p>
+            </header>
+
+            <section class="search-section" aria-labelledby="search-heading">
+                <h2 id="search-heading" class="visually-hidden">분리배출 품목 검색</h2>
 
             <form id="search-form" class="search-form" role="search">
                 <label class="visually-hidden" for="search-input">버릴 물건 검색</label>
@@ -115,17 +161,151 @@
                     <button type="button">음식물</button>
                 </div>
             </div>
+            </section>
+
+            <section
+                id="result-section"
+                class="result-section"
+                aria-live="polite"
+                aria-busy="false"
+                hidden
+            >
+                <div id="result-summary" class="result-summary"></div>
+                <div id="result-list" class="result-list"></div>
+            </section>
         </section>
 
         <section
-            id="result-section"
-            class="result-section"
-            aria-live="polite"
-            aria-busy="false"
+            id="fact-view"
+            class="app-view fact-view"
+            aria-labelledby="fact-page-title"
             hidden
         >
-            <div id="result-summary" class="result-summary"></div>
-            <div id="result-list" class="result-list"></div>
+            <header class="view-header">
+                <h1 id="fact-page-title">🌱 오늘의 환경 상식</h1>
+                <p>일상 속 품목이 환경에 어떤 영향을 주는지 알아보세요.</p>
+            </header>
+            <article class="fact-page-card" aria-live="polite">
+                <div id="daily-fact-content" class="daily-fact-content">
+                    <p>환경 상식을 불러오고 있습니다.</p>
+                </div>
+                <button id="new-fact-button" type="button">
+                    다른 상식 보기
+                </button>
+            </article>
+        </section>
+
+        <section
+            id="quiz-view"
+            class="app-view quiz-section"
+            aria-labelledby="quiz-title"
+            hidden
+        >
+            <div class="quiz-heading">
+                <div>
+                    <h2 id="quiz-title">🧠 분리배출 퀴즈</h2>
+                    <p>품목에 맞는 분리배출 카테고리를 맞혀보세요.</p>
+                </div>
+                <div class="quiz-actions">
+                    <button id="quiz-start-button" type="button">시작하기</button>
+                    <button id="study-mode-button" type="button">
+                        📖 학습 모드
+                    </button>
+                </div>
+            </div>
+            <section
+                id="eco-level-panel"
+                class="eco-level-panel"
+                aria-labelledby="eco-level-title"
+            >
+                <div class="eco-level-heading">
+                    <div>
+                        <span id="eco-level-title">Eco Level</span>
+                        <strong id="eco-level-name">Lv.1 환경 새싹</strong>
+                    </div>
+                    <span id="eco-level-exp">0 / 50 EXP</span>
+                </div>
+                <div
+                    class="progress-track"
+                    role="progressbar"
+                    aria-label="다음 환경 레벨까지의 경험치"
+                    aria-valuemin="0"
+                    aria-valuemax="50"
+                    aria-valuenow="0"
+                >
+                    <span id="eco-level-progress" class="progress-fill"></span>
+                </div>
+            </section>
+            <div id="quiz-stats" class="quiz-stats">
+                <div>
+                    <span>오늘의 최고 점수</span>
+                    <strong id="quiz-best-score">0점</strong>
+                </div>
+                <div>
+                    <span>최근 점수</span>
+                    <strong id="quiz-recent-score">기록 없음</strong>
+                </div>
+                <div>
+                    <span>획득 배지</span>
+                    <strong id="quiz-representative-badge">아직 없음</strong>
+                </div>
+            </div>
+            <div
+                id="quiz-content"
+                class="quiz-content"
+                aria-live="polite"
+                hidden
+            ></div>
+        </section>
+
+        <section
+            id="collection-view"
+            class="app-view collection-view"
+            aria-labelledby="collection-title"
+            hidden
+        >
+            <header class="view-header">
+                <h1 id="collection-title">📚 환경 도감</h1>
+                <p>퀴즈에서 정답을 맞히고 새로운 품목을 발견해보세요.</p>
+            </header>
+            <section class="collection-summary" aria-live="polite">
+                <div class="collection-summary-heading">
+                    <strong id="collection-count">0 / 0 수집</strong>
+                    <span id="collection-percent">0%</span>
+                </div>
+                <div
+                    id="collection-progress-track"
+                    class="progress-track"
+                    role="progressbar"
+                    aria-label="환경 도감 수집 진행률"
+                    aria-valuemin="0"
+                    aria-valuemax="0"
+                    aria-valuenow="0"
+                >
+                    <span
+                        id="collection-progress"
+                        class="progress-fill"
+                    ></span>
+                </div>
+                <div class="collection-badge-area">
+                    <span>도감 배지</span>
+                    <strong id="collection-badges">아직 없음</strong>
+                </div>
+            </section>
+            <div
+                id="collection-status"
+                class="collection-status"
+                aria-live="polite"
+            >
+                도감을 불러오고 있습니다.
+            </div>
+            <div id="collection-grid" class="collection-grid" hidden></div>
+            <section
+                id="collection-detail"
+                class="collection-detail"
+                aria-live="polite"
+                hidden
+            ></section>
         </section>
     </main>
 
