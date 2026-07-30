@@ -22,6 +22,142 @@ app.get("/api/health", (req, res) => {
     });
 });
 
+const KOREAN_INITIALS = [
+    "ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ",
+    "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"
+];
+
+const autocompletePrimarySourceQuery = `
+    SELECT name AS value FROM items
+    UNION
+    SELECT category AS value FROM items
+`;
+
+const autocompleteAliasSourceQuery = "SELECT alias AS value FROM aliases";
+
+// LIKE에서 사용자 입력의 %, _, \ 문자가 와일드카드로 해석되지 않도록 처리합니다.
+function escapeLikePattern(value) {
+    return value.replace(/[\\%_]/g, "\\$&");
+}
+
+function getKoreanInitial(character) {
+    const codePoint = character.codePointAt(0);
+    const firstHangulSyllable = 0xac00;
+    const lastHangulSyllable = 0xd7a3;
+
+    if (codePoint < firstHangulSyllable || codePoint > lastHangulSyllable) {
+        return character;
+    }
+
+    const initialIndex = Math.floor((codePoint - firstHangulSyllable) / 588);
+    return KOREAN_INITIALS[initialIndex];
+}
+
+// "ㅍ"처럼 한글 초성만 입력한 경우 "페트병", "플라스틱"도 추천할 수 있게 합니다.
+function matchesKoreanInitialPrefix(value, query) {
+    const queryCharacters = Array.from(query);
+
+    if (
+        queryCharacters.length === 0
+        || !queryCharacters.every((character) => KOREAN_INITIALS.includes(character))
+    ) {
+        return false;
+    }
+
+    const valueCharacters = Array.from(value);
+    return queryCharacters.every(
+        (character, index) =>
+            valueCharacters[index] && getKoreanInitial(valueCharacters[index]) === character
+    );
+}
+
+// 자동완성은 검색 API와 분리하여 품목명, 별칭, 카테고리만 조회합니다.
+app.get("/api/autocomplete", async (req, res) => {
+    const query = typeof req.query.q === "string" ? req.query.q.trim() : "";
+
+    if (!query) {
+        return res.json({
+            success: true,
+            data: []
+        });
+    }
+
+    try {
+        const prefix = `${escapeLikePattern(query)}%`;
+        const primaryPrefixMatches = await db.all(
+            `SELECT value
+             FROM (${autocompletePrimarySourceQuery})
+             WHERE value LIKE ? ESCAPE '\\'`,
+            [prefix]
+        );
+        const aliasPrefixMatches = await db.all(
+            `SELECT value
+             FROM (${autocompleteAliasSourceQuery})
+             WHERE value LIKE ? ESCAPE '\\'`,
+            [prefix]
+        );
+        const primarySuggestions = new Set(
+            primaryPrefixMatches.map((row) => row.value)
+        );
+        const aliasSuggestions = new Set(
+            aliasPrefixMatches.map((row) => row.value)
+        );
+
+        // SQLite LIKE가 한글 초성과 완성형 음절을 연결하지 못하므로 초성 입력만 보완합니다.
+        if (Array.from(query).every((character) => KOREAN_INITIALS.includes(character))) {
+            const primaryCandidates = await db.all(
+                `SELECT value FROM (${autocompletePrimarySourceQuery})`
+            );
+            const aliasCandidates = await db.all(
+                `SELECT value FROM (${autocompleteAliasSourceQuery})`
+            );
+
+            for (const candidate of primaryCandidates) {
+                if (matchesKoreanInitialPrefix(candidate.value, query)) {
+                    primarySuggestions.add(candidate.value);
+                }
+            }
+
+            for (const candidate of aliasCandidates) {
+                if (matchesKoreanInitialPrefix(candidate.value, query)) {
+                    aliasSuggestions.add(candidate.value);
+                }
+            }
+        }
+
+        const compareKorean = (first, second) => first.localeCompare(second, "ko");
+        const selectedSuggestions = Array.from(primarySuggestions)
+            .sort(compareKorean)
+            .slice(0, 8);
+
+        // 핵심 품목명과 카테고리를 우선 표시하고 남은 자리를 별칭으로 채웁니다.
+        for (const alias of Array.from(aliasSuggestions).sort(compareKorean)) {
+            if (selectedSuggestions.length >= 8) {
+                break;
+            }
+
+            if (!primarySuggestions.has(alias)) {
+                selectedSuggestions.push(alias);
+            }
+        }
+
+        const data = selectedSuggestions
+            .sort((first, second) => first.localeCompare(second, "ko"))
+            .slice(0, 8);
+
+        return res.json({
+            success: true,
+            data
+        });
+    } catch (error) {
+        console.error("자동완성 검색 중 오류가 발생했습니다:", error);
+        return res.status(500).json({
+            success: false,
+            message: "서버 오류가 발생했습니다."
+        });
+    }
+});
+
 /**
  * 두 문자열 사이의 Levenshtein Distance(편집 거리)를 계산합니다.
  * 한 글자의 삽입, 삭제, 치환을 각각 1회 편집으로 계산합니다.
@@ -156,7 +292,7 @@ function findBestFuzzyMatch(query, items, aliases, tags) {
     return bestMatch;
 }
 
-// 품목명, 별칭, 태그를 정확 검색한 뒤 마지막에 오타 검색을 수행합니다.
+// 품목명, 별칭, 카테고리·태그 그룹 검색 후 마지막에 오타 검색을 수행합니다.
 app.get("/api/search", async (req, res) => {
     const query = typeof req.query.q === "string" ? req.query.q.trim() : "";
 
@@ -188,45 +324,59 @@ app.get("/api/search", async (req, res) => {
             [query]
         );
 
+        let itemByAlias = null;
+
         if (matchedAlias) {
-            const itemByAlias = await db.get(
+            itemByAlias = await db.get(
                 "SELECT * FROM items WHERE id = ?",
                 [matchedAlias.item_id]
             );
-
-            if (itemByAlias) {
-                return res.json({
-                    success: true,
-                    searchType: "alias",
-                    data: itemByAlias
-                });
-            }
         }
 
-        // 3. Tag와 일치하는 모든 item_id의 품목을 반환
-        const matchedTags = await db.all(
-            "SELECT DISTINCT item_id FROM tags WHERE tag = ?",
-            [query]
+        // 3. Category 또는 Tag가 일치하는 품목을 하나의 그룹으로 검색합니다.
+        // items를 기준으로 EXISTS를 사용하므로 동일 품목이 여러 태그와 일치해도 중복되지 않습니다.
+        const groupedItems = await db.all(
+            `SELECT *
+             FROM items
+             WHERE category = ?
+                OR EXISTS (
+                    SELECT 1
+                    FROM tags
+                    WHERE tags.item_id = items.id
+                      AND tags.tag = ?
+                )
+             ORDER BY name ASC, id ASC`,
+            [query, query]
         );
 
-        if (matchedTags.length > 0) {
-            const itemIds = matchedTags.map((tag) => tag.item_id);
-            const placeholders = itemIds.map(() => "?").join(", ");
-            const itemsByTag = await db.all(
-                `SELECT * FROM items WHERE id IN (${placeholders}) ORDER BY id`,
-                itemIds
-            );
-
-            if (itemsByTag.length > 0) {
-                return res.json({
-                    success: true,
-                    searchType: "tag",
-                    data: itemsByTag
-                });
-            }
+        // 구체적인 별칭은 기존처럼 단일 품목을 반환합니다.
+        // 단, "비닐", "병"처럼 여러 품목을 가리키는 공통 키워드는 그룹 결과를 우선합니다.
+        if (itemByAlias && groupedItems.length <= 1) {
+            return res.json({
+                success: true,
+                searchType: "alias",
+                data: itemByAlias
+            });
         }
 
-        // 4. 모든 정확 검색 실패 후 품목명, 별칭, 태그를 대상으로 오타 검색
+        if (groupedItems.length > 0) {
+            return res.json({
+                success: true,
+                searchType: "group",
+                data: groupedItems
+            });
+        }
+
+        // 그룹 검색 결과가 없는 일반 별칭은 기존 응답 형식을 유지합니다.
+        if (itemByAlias) {
+            return res.json({
+                success: true,
+                searchType: "alias",
+                data: itemByAlias
+            });
+        }
+
+        // 4. 모든 정확·그룹 검색 실패 후 품목명, 별칭, 태그를 대상으로 오타 검색
         const fuzzyItems = await db.all("SELECT * FROM items ORDER BY id");
         const fuzzyAliases = await db.all(
             "SELECT item_id, alias FROM aliases ORDER BY id"

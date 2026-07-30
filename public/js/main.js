@@ -1,14 +1,20 @@
 const searchForm = document.querySelector("#search-form");
 const searchInput = document.querySelector("#search-input");
 const searchButton = document.querySelector("#search-button");
+const autocompleteList = document.querySelector("#autocomplete-list");
 const resultSection = document.querySelector("#result-section");
 const resultSummary = document.querySelector("#result-summary");
 const resultList = document.querySelector("#result-list");
+
+let autocompleteSuggestions = [];
+let activeSuggestionIndex = -1;
+let autocompleteRequest = null;
 
 const searchTypeLabels = {
     name: "품목명",
     alias: "비슷한 이름",
     tag: "관련 태그",
+    group: "관련 품목",
     fuzzy: "유사 검색"
 };
 
@@ -181,6 +187,131 @@ function setLoading(isLoading) {
     resultSection.setAttribute("aria-busy", String(isLoading));
 }
 
+function closeAutocomplete() {
+    if (autocompleteRequest) {
+        autocompleteRequest.abort();
+        autocompleteRequest = null;
+    }
+
+    autocompleteSuggestions = [];
+    activeSuggestionIndex = -1;
+    autocompleteList.replaceChildren();
+    autocompleteList.hidden = true;
+    searchInput.setAttribute("aria-expanded", "false");
+    searchInput.removeAttribute("aria-activedescendant");
+}
+
+function updateActiveSuggestion(nextIndex) {
+    const options = Array.from(autocompleteList.children);
+
+    if (options.length === 0) {
+        return;
+    }
+
+    activeSuggestionIndex = nextIndex;
+
+    options.forEach((option, index) => {
+        const isActive = index === activeSuggestionIndex;
+        option.classList.toggle("is-active", isActive);
+        option.setAttribute("aria-selected", String(isActive));
+
+        if (isActive) {
+            searchInput.setAttribute("aria-activedescendant", option.id);
+            option.scrollIntoView({ block: "nearest" });
+        }
+    });
+}
+
+function selectSuggestion(suggestion) {
+    searchInput.value = suggestion;
+    closeAutocomplete();
+    searchForm.requestSubmit();
+}
+
+// 실제 입력 문자열과 일치하는 앞부분만 안전한 DOM 노드로 나누어 강조합니다.
+function appendHighlightedSuggestion(option, suggestion, query) {
+    if (!query || !suggestion.startsWith(query)) {
+        option.textContent = suggestion;
+        return;
+    }
+
+    const matchedText = document.createElement("strong");
+    matchedText.className = "autocomplete-match";
+    matchedText.textContent = suggestion.slice(0, query.length);
+
+    option.append(
+        matchedText,
+        document.createTextNode(suggestion.slice(query.length))
+    );
+}
+
+function renderAutocomplete(suggestions, query) {
+    if (suggestions.length === 0) {
+        closeAutocomplete();
+        return;
+    }
+
+    autocompleteSuggestions = suggestions;
+    activeSuggestionIndex = -1;
+
+    const options = suggestions.map((suggestion, index) => {
+        const option = document.createElement("li");
+        option.className = "autocomplete-option";
+        option.id = `autocomplete-option-${index}`;
+        option.setAttribute("role", "option");
+        option.setAttribute("aria-selected", "false");
+        appendHighlightedSuggestion(option, suggestion, query);
+
+        option.addEventListener("mouseenter", () => {
+            updateActiveSuggestion(index);
+        });
+        option.addEventListener("click", () => {
+            selectSuggestion(suggestion);
+        });
+
+        return option;
+    });
+
+    autocompleteList.replaceChildren(...options);
+    autocompleteList.hidden = false;
+    searchInput.setAttribute("aria-expanded", "true");
+}
+
+async function fetchAutocomplete(query) {
+    if (autocompleteRequest) {
+        autocompleteRequest.abort();
+    }
+
+    autocompleteRequest = new AbortController();
+
+    try {
+        const response = await fetch(
+            `/api/autocomplete?q=${encodeURIComponent(query)}`,
+            {
+                headers: {
+                    Accept: "application/json"
+                },
+                signal: autocompleteRequest.signal
+            }
+        );
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.message || "자동완성 요청에 실패했습니다.");
+        }
+
+        // 이전 요청이 늦게 도착해 현재 입력값과 다른 목록을 표시하지 않도록 합니다.
+        if (searchInput.value.trim() === query) {
+            renderAutocomplete(result.data, query);
+        }
+    } catch (error) {
+        if (error.name !== "AbortError") {
+            console.error(error);
+            closeAutocomplete();
+        }
+    }
+}
+
 async function searchItems(query) {
     const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`, {
         headers: {
@@ -202,8 +333,56 @@ async function searchItems(query) {
     renderResults(query, result.searchType, result.data, result.suggestion);
 }
 
+searchInput.addEventListener("input", () => {
+    const query = searchInput.value.trim();
+
+    if (!query) {
+        if (autocompleteRequest) {
+            autocompleteRequest.abort();
+        }
+        closeAutocomplete();
+        return;
+    }
+
+    fetchAutocomplete(query);
+});
+
+searchInput.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+        event.preventDefault();
+        closeAutocomplete();
+        return;
+    }
+
+    if (autocompleteSuggestions.length === 0) {
+        return;
+    }
+
+    if (event.key === "ArrowDown") {
+        event.preventDefault();
+        const nextIndex = (activeSuggestionIndex + 1) % autocompleteSuggestions.length;
+        updateActiveSuggestion(nextIndex);
+    } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        const nextIndex =
+            (activeSuggestionIndex - 1 + autocompleteSuggestions.length)
+            % autocompleteSuggestions.length;
+        updateActiveSuggestion(nextIndex);
+    } else if (event.key === "Enter" && activeSuggestionIndex >= 0) {
+        event.preventDefault();
+        selectSuggestion(autocompleteSuggestions[activeSuggestionIndex]);
+    }
+});
+
+document.addEventListener("click", (event) => {
+    if (!searchForm.contains(event.target)) {
+        closeAutocomplete();
+    }
+});
+
 searchForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    closeAutocomplete();
 
     const query = searchInput.value.trim();
     if (!query) {
