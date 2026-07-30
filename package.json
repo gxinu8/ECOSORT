@@ -3,10 +3,13 @@
   "version": "1.0.0",
   "description": "EcoSort는 올바른 분리배출 방법을 쉽고 빠르게 검색할 수 있는 웹 서비스입니다.",
   "main": "server/server.js",
+
   "scripts": {
-    "start": "node server/server.js",
-    "dev": "nodemon server/server.js"
+  "seed": "node database/seed.js",
+  "start": "npm run seed && node server/server.js",
+  "dev": "nodemon server/server.js"
   },
+  
   "repository": {
     "type": "git",
     "url": "git+https://github.com/gxinu8/ECOSORT.git"
