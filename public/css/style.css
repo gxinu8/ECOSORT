@@ -275,6 +275,66 @@ button {
     font-weight: 700;
 }
 
+.favorites-section {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid #edf0ed;
+}
+
+.favorites-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 9px;
+}
+
+.favorites-heading p {
+    margin: 0;
+    color: #4f5952;
+    font-size: 0.88rem;
+    font-weight: 700;
+}
+
+.clear-favorites {
+    padding: 2px 3px;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 0.76rem;
+    transition: color 0.2s ease;
+}
+
+.clear-favorites:hover {
+    color: var(--primary);
+}
+
+.favorites-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.favorite-search-button {
+    padding: 6px 11px;
+    border: 1px solid #d5dfd6;
+    border-radius: 16px;
+    background: #fafcfa;
+    color: #405443;
+    font-size: 0.84rem;
+    transition:
+        border-color 0.2s ease,
+        background-color 0.2s ease;
+}
+
+.favorite-search-button:hover {
+    border-color: var(--accent);
+    background: var(--soft-green);
+}
+
 .category-area {
     margin-top: 26px;
     padding-top: 22px;
@@ -391,6 +451,10 @@ button {
 }
 
 .card-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
     margin-bottom: 18px;
 }
 
@@ -399,6 +463,34 @@ button {
     color: #253d28;
     font-size: 1.45rem;
     letter-spacing: -0.02em;
+}
+
+.favorite-toggle {
+    flex: 0 0 auto;
+    padding: 2px;
+    border: 0;
+    background: transparent;
+    color: #7f8781;
+    font-size: 1.55rem;
+    line-height: 1;
+    transition:
+        color 0.15s ease,
+        transform 0.15s ease;
+}
+
+.favorite-toggle:hover {
+    transform: scale(1.06);
+}
+
+.favorite-toggle.is-favorite {
+    color: #e0a800;
+}
+
+.favorite-toggle:focus-visible,
+.favorite-search-button:focus-visible,
+.clear-favorites:focus-visible {
+    outline: 3px solid rgba(67, 160, 71, 0.2);
+    outline-offset: 2px;
 }
 
 .disposal-method {

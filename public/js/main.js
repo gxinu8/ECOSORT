@@ -5,16 +5,21 @@ const autocompleteList = document.querySelector("#autocomplete-list");
 const recentSearchPanel = document.querySelector("#recent-search-panel");
 const recentSearchList = document.querySelector("#recent-search-list");
 const clearRecentSearchesButton = document.querySelector("#clear-recent-searches");
+const favoritesSection = document.querySelector("#favorites-section");
+const favoritesList = document.querySelector("#favorites-list");
+const clearFavoritesButton = document.querySelector("#clear-favorites");
 const resultSection = document.querySelector("#result-section");
 const resultSummary = document.querySelector("#result-summary");
 const resultList = document.querySelector("#result-list");
 
 const RECENT_SEARCH_STORAGE_KEY = "ecosortRecentSearches";
 const MAX_RECENT_SEARCHES = 5;
+const FAVORITES_STORAGE_KEY = "ecosort-favorites";
 
 let autocompleteSuggestions = [];
 let activeSuggestionIndex = -1;
 let autocompleteRequest = null;
+const renderedFavoriteButtons = new Map();
 
 const searchTypeLabels = {
     name: "품목명",
@@ -65,7 +70,10 @@ function createResultCard(item) {
 
     const heading = document.createElement("div");
     heading.className = "card-heading";
-    heading.appendChild(createTextElement("h2", "", formatValue(item.name)));
+    heading.append(
+        createTextElement("h2", "", formatValue(item.name)),
+        createFavoriteToggle(item.name)
+    );
 
     const isRecyclable = Boolean(item.recyclable);
     const recycleInfo = createBasicInfo(
@@ -111,6 +119,7 @@ function showResultSection() {
 function renderMessage(message, type = "") {
     showResultSection();
     resultSummary.replaceChildren();
+    renderedFavoriteButtons.clear();
 
     const messageBox = document.createElement("div");
     messageBox.className = `result-message${type ? ` ${type}` : ""}`;
@@ -121,6 +130,7 @@ function renderMessage(message, type = "") {
 function renderEmptyState() {
     showResultSection();
     resultSummary.replaceChildren();
+    renderedFavoriteButtons.clear();
 
     const messageBox = document.createElement("div");
     messageBox.className = "result-message empty-state";
@@ -184,6 +194,7 @@ function renderResults(query, searchType, data, suggestion = "") {
         );
     }
 
+    renderedFavoriteButtons.clear();
     resultList.replaceChildren(...items.map(createResultCard));
 }
 
@@ -256,6 +267,113 @@ function saveRecentSearch(query) {
     } catch (error) {
         console.warn("최근 검색어를 저장하지 못했습니다.", error);
     }
+}
+
+function getFavorites() {
+    try {
+        const storedFavorites = JSON.parse(
+            localStorage.getItem(FAVORITES_STORAGE_KEY) || "[]"
+        );
+
+        if (!Array.isArray(storedFavorites)) {
+            return [];
+        }
+
+        return Array.from(
+            new Set(
+                storedFavorites.filter(
+                    (favorite) =>
+                        typeof favorite === "string" && favorite.trim()
+                )
+            )
+        );
+    } catch (error) {
+        console.warn("즐겨찾기를 불러오지 못했습니다.", error);
+        return [];
+    }
+}
+
+function saveFavorites(favorites) {
+    try {
+        localStorage.setItem(
+            FAVORITES_STORAGE_KEY,
+            JSON.stringify(favorites)
+        );
+    } catch (error) {
+        console.warn("즐겨찾기를 저장하지 못했습니다.", error);
+    }
+}
+
+function updateFavoriteButton(button, itemName, favorites = getFavorites()) {
+    const isFavorite = favorites.includes(itemName);
+    button.textContent = isFavorite ? "★" : "☆";
+    button.classList.toggle("is-favorite", isFavorite);
+    button.setAttribute("aria-pressed", String(isFavorite));
+    button.setAttribute(
+        "aria-label",
+        isFavorite
+            ? `${itemName} 즐겨찾기 해제`
+            : `${itemName} 즐겨찾기 추가`
+    );
+}
+
+function updateRenderedFavoriteButtons() {
+    const favorites = getFavorites();
+
+    for (const [itemName, button] of renderedFavoriteButtons) {
+        updateFavoriteButton(button, itemName, favorites);
+    }
+}
+
+function renderFavorites() {
+    const favorites = getFavorites();
+
+    if (favorites.length === 0) {
+        favoritesList.replaceChildren();
+        favoritesSection.hidden = true;
+        return;
+    }
+
+    const items = favorites.map((itemName) => {
+        const listItem = document.createElement("li");
+        const button = createTextElement(
+            "button",
+            "favorite-search-button",
+            itemName
+        );
+        button.type = "button";
+        button.addEventListener("click", () => {
+            submitSelectedSearch(itemName);
+        });
+        listItem.appendChild(button);
+        return listItem;
+    });
+
+    favoritesList.replaceChildren(...items);
+    favoritesSection.hidden = false;
+}
+
+function toggleFavorite(itemName) {
+    const favorites = getFavorites();
+    const nextFavorites = favorites.includes(itemName)
+        ? favorites.filter((favorite) => favorite !== itemName)
+        : [...favorites, itemName];
+
+    saveFavorites(nextFavorites);
+    renderFavorites();
+    updateRenderedFavoriteButtons();
+}
+
+function createFavoriteToggle(itemName) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "favorite-toggle";
+    updateFavoriteButton(button, itemName);
+    renderedFavoriteButtons.set(itemName, button);
+    button.addEventListener("click", () => {
+        toggleFavorite(itemName);
+    });
+    return button;
 }
 
 function submitSelectedSearch(query) {
@@ -507,6 +625,21 @@ clearRecentSearchesButton.addEventListener("click", () => {
     searchInput.focus();
 });
 
+clearFavoritesButton.addEventListener("click", () => {
+    if (!confirm("즐겨찾기를 모두 삭제하시겠습니까?")) {
+        return;
+    }
+
+    try {
+        localStorage.removeItem(FAVORITES_STORAGE_KEY);
+    } catch (error) {
+        console.warn("즐겨찾기를 삭제하지 못했습니다.", error);
+    }
+
+    renderFavorites();
+    updateRenderedFavoriteButtons();
+});
+
 searchForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     closeSearchPanels();
@@ -531,3 +664,6 @@ searchForm.addEventListener("submit", async (event) => {
         searchInput.focus();
     }
 });
+
+// 새로고침 후에도 localStorage에 저장된 즐겨찾기를 바로 표시합니다.
+renderFavorites();
