@@ -2,7 +2,7 @@
   "name": "ecosort",
   "version": "1.0.0",
   "description": "EcoSort는 올바른 분리배출 방법을 쉽고 빠르게 검색할 수 있는 웹 서비스입니다.",
-  "main": "index.js",
+  "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js",
     "dev": "nodemon server/server.js"
