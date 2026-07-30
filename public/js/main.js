@@ -2,9 +2,15 @@ const searchForm = document.querySelector("#search-form");
 const searchInput = document.querySelector("#search-input");
 const searchButton = document.querySelector("#search-button");
 const autocompleteList = document.querySelector("#autocomplete-list");
+const recentSearchPanel = document.querySelector("#recent-search-panel");
+const recentSearchList = document.querySelector("#recent-search-list");
+const clearRecentSearchesButton = document.querySelector("#clear-recent-searches");
 const resultSection = document.querySelector("#result-section");
 const resultSummary = document.querySelector("#result-summary");
 const resultList = document.querySelector("#result-list");
+
+const RECENT_SEARCH_STORAGE_KEY = "ecosortRecentSearches";
+const MAX_RECENT_SEARCHES = 5;
 
 let autocompleteSuggestions = [];
 let activeSuggestionIndex = -1;
@@ -187,6 +193,11 @@ function setLoading(isLoading) {
     resultSection.setAttribute("aria-busy", String(isLoading));
 }
 
+function updateSearchPanelState() {
+    const isExpanded = !autocompleteList.hidden || !recentSearchPanel.hidden;
+    searchInput.setAttribute("aria-expanded", String(isExpanded));
+}
+
 function closeAutocomplete() {
     if (autocompleteRequest) {
         autocompleteRequest.abort();
@@ -197,8 +208,95 @@ function closeAutocomplete() {
     activeSuggestionIndex = -1;
     autocompleteList.replaceChildren();
     autocompleteList.hidden = true;
-    searchInput.setAttribute("aria-expanded", "false");
     searchInput.removeAttribute("aria-activedescendant");
+    updateSearchPanelState();
+}
+
+function closeRecentSearches() {
+    recentSearchList.replaceChildren();
+    recentSearchPanel.hidden = true;
+    updateSearchPanelState();
+}
+
+function closeSearchPanels() {
+    closeAutocomplete();
+    closeRecentSearches();
+}
+
+function getRecentSearches() {
+    try {
+        const storedSearches = JSON.parse(
+            localStorage.getItem(RECENT_SEARCH_STORAGE_KEY) || "[]"
+        );
+
+        if (!Array.isArray(storedSearches)) {
+            return [];
+        }
+
+        return storedSearches
+            .filter((search) => typeof search === "string" && search.trim())
+            .slice(0, MAX_RECENT_SEARCHES);
+    } catch (error) {
+        console.warn("최근 검색어를 불러오지 못했습니다.", error);
+        return [];
+    }
+}
+
+function saveRecentSearch(query) {
+    const recentSearches = getRecentSearches()
+        .filter((search) => search !== query);
+    const nextRecentSearches = [query, ...recentSearches]
+        .slice(0, MAX_RECENT_SEARCHES);
+
+    try {
+        localStorage.setItem(
+            RECENT_SEARCH_STORAGE_KEY,
+            JSON.stringify(nextRecentSearches)
+        );
+    } catch (error) {
+        console.warn("최근 검색어를 저장하지 못했습니다.", error);
+    }
+}
+
+function submitSelectedSearch(query) {
+    searchInput.value = query;
+    closeSearchPanels();
+    searchForm.requestSubmit();
+}
+
+function renderRecentSearches() {
+    if (searchInput.value.trim()) {
+        closeRecentSearches();
+        return;
+    }
+
+    const recentSearches = getRecentSearches();
+
+    if (recentSearches.length === 0) {
+        closeRecentSearches();
+        return;
+    }
+
+    closeAutocomplete();
+
+    const items = recentSearches.map((search) => {
+        const listItem = document.createElement("li");
+        const button = createTextElement(
+            "button",
+            "recent-search-item",
+            search
+        );
+        button.type = "button";
+        button.addEventListener("click", () => {
+            submitSelectedSearch(search);
+        });
+        listItem.appendChild(button);
+        return listItem;
+    });
+
+    recentSearchList.replaceChildren(...items);
+    recentSearchPanel.hidden = false;
+    updateSearchPanelState();
 }
 
 function updateActiveSuggestion(nextIndex) {
@@ -223,9 +321,7 @@ function updateActiveSuggestion(nextIndex) {
 }
 
 function selectSuggestion(suggestion) {
-    searchInput.value = suggestion;
-    closeAutocomplete();
-    searchForm.requestSubmit();
+    submitSelectedSearch(suggestion);
 }
 
 // 실제 입력 문자열과 일치하는 앞부분만 안전한 DOM 노드로 나누어 강조합니다.
@@ -273,8 +369,9 @@ function renderAutocomplete(suggestions, query) {
     });
 
     autocompleteList.replaceChildren(...options);
+    closeRecentSearches();
     autocompleteList.hidden = false;
-    searchInput.setAttribute("aria-expanded", "true");
+    updateSearchPanelState();
 }
 
 async function fetchAutocomplete(query) {
@@ -331,6 +428,7 @@ async function searchItems(query) {
     }
 
     renderResults(query, result.searchType, result.data, result.suggestion);
+    saveRecentSearch(query);
 }
 
 searchInput.addEventListener("input", () => {
@@ -341,16 +439,30 @@ searchInput.addEventListener("input", () => {
             autocompleteRequest.abort();
         }
         closeAutocomplete();
+        renderRecentSearches();
         return;
     }
 
+    closeRecentSearches();
     fetchAutocomplete(query);
+});
+
+searchInput.addEventListener("focus", () => {
+    if (!searchInput.value.trim()) {
+        renderRecentSearches();
+    }
+});
+
+searchInput.addEventListener("click", () => {
+    if (!searchInput.value.trim()) {
+        renderRecentSearches();
+    }
 });
 
 searchInput.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
         event.preventDefault();
-        closeAutocomplete();
+        closeSearchPanels();
         return;
     }
 
@@ -376,13 +488,28 @@ searchInput.addEventListener("keydown", (event) => {
 
 document.addEventListener("click", (event) => {
     if (!searchForm.contains(event.target)) {
-        closeAutocomplete();
+        closeSearchPanels();
     }
+});
+
+clearRecentSearchesButton.addEventListener("click", () => {
+    if (!confirm("정말 삭제하시겠습니까?")) {
+        return;
+    }
+
+    try {
+        localStorage.removeItem(RECENT_SEARCH_STORAGE_KEY);
+    } catch (error) {
+        console.warn("최근 검색어를 삭제하지 못했습니다.", error);
+    }
+
+    closeRecentSearches();
+    searchInput.focus();
 });
 
 searchForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    closeAutocomplete();
+    closeSearchPanels();
 
     const query = searchInput.value.trim();
     if (!query) {

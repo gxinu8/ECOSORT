@@ -39,7 +39,7 @@
                             placeholder="품목명이나 별칭을 입력해보세요"
                             autocomplete="off"
                             aria-autocomplete="list"
-                            aria-controls="autocomplete-list"
+                            aria-controls="autocomplete-list recent-search-panel"
                             aria-expanded="false"
                             required
                         >
@@ -50,6 +50,27 @@
                             aria-label="자동완성 추천"
                             hidden
                         ></ul>
+                        <div
+                            id="recent-search-panel"
+                            class="recent-search-panel"
+                            hidden
+                        >
+                            <p class="recent-search-title">🕘 최근 검색</p>
+                            <ul
+                                id="recent-search-list"
+                                class="recent-search-list"
+                                aria-label="최근 검색어"
+                            ></ul>
+                            <div class="recent-search-footer">
+                                <button
+                                    id="clear-recent-searches"
+                                    class="clear-recent-searches"
+                                    type="button"
+                                >
+                                    최근 검색어 삭제
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     <button id="search-button" type="submit">검색</button>
                 </div>

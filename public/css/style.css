@@ -116,7 +116,8 @@ button {
     box-shadow: 0 0 0 3px rgba(67, 160, 71, 0.11);
 }
 
-.autocomplete-list {
+.autocomplete-list,
+.recent-search-panel {
     position: absolute;
     z-index: 10;
     top: calc(100% + 6px);
@@ -130,10 +131,14 @@ button {
     border-radius: var(--control-radius);
     background: var(--card);
     box-shadow: 0 7px 18px rgba(45, 70, 47, 0.12);
+}
+
+.autocomplete-list {
     list-style: none;
 }
 
-.autocomplete-list[hidden] {
+.autocomplete-list[hidden],
+.recent-search-panel[hidden] {
     display: none;
 }
 
@@ -153,6 +158,77 @@ button {
 .autocomplete-option:hover,
 .autocomplete-option.is-active {
     background: var(--soft-green);
+}
+
+.recent-search-title {
+    margin: 3px 7px 5px;
+    color: #59625b;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.recent-search-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.search-controls .recent-search-item {
+    display: block;
+    width: 100%;
+    padding: 9px 11px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    box-shadow: none;
+    color: #405443;
+    font-weight: 400;
+    text-align: left;
+    transition: background-color 0.2s ease;
+}
+
+.search-controls .recent-search-item:hover:not(:disabled) {
+    background: var(--soft-green);
+    box-shadow: none;
+    transform: none;
+}
+
+.search-controls .recent-search-item:active:not(:disabled) {
+    box-shadow: none;
+    transform: none;
+}
+
+.recent-search-footer {
+    margin: 4px 5px 0;
+    padding-top: 5px;
+    border-top: 1px solid #edf0ed;
+    text-align: right;
+}
+
+.search-controls .clear-recent-searches {
+    display: inline;
+    width: auto;
+    min-height: 0;
+    padding: 3px 4px;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--muted);
+    font-size: 0.76rem;
+    font-weight: 400;
+    transition: color 0.2s ease;
+}
+
+.search-controls .clear-recent-searches:hover:not(:disabled) {
+    background: transparent;
+    box-shadow: none;
+    color: var(--primary);
+    transform: none;
+}
+
+.search-controls .clear-recent-searches:active:not(:disabled) {
+    box-shadow: none;
+    transform: none;
 }
 
 .search-controls button {
